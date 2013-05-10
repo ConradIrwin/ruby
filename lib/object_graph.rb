@@ -12,8 +12,9 @@ class ObjectGraph
   #   model = controller.model_cache.first
   #   ObjectGraph.new(model)
   #
-  def initialize(obj=nil)
+  def initialize(obj=nil, distance=nil)
     @obj = obj
+    @distance = distance
   end
 
   # Get the list of edges in this graph.
@@ -76,6 +77,8 @@ class ObjectGraph
 
   private
 
+  EXCLUDE_GLOBALS = [ :$FILENAME ]
+
   # Hack to ensure that global variables are marked in the output graph.
   def reset_globals
     ov = $VERBOSE
@@ -83,7 +86,7 @@ class ObjectGraph
     @globals ||= Class.new(Hash){ def inspect; "globals"; end }.new
     @globals.replace({})
     global_variables.each do |x|
-      @globals[x] = eval(x.to_s)
+      @globals[x] = eval(x.to_s) if not EXCLUDE_GLOBALS.include?(x)
     end
   ensure
     $VERBOSE = ov
@@ -102,6 +105,8 @@ class ObjectGraph
     thread[:edges]
   end
 
+  ToSee = Struct.new(:obj, :distance)
+
   # A breadth-first search of the reference graph of the given object.
   #
   # @return Set<Array<Object>>
@@ -109,21 +114,24 @@ class ObjectGraph
     raise ArgumentError, "Cannot find references to nil or false" unless obj
 
     seen = [obj]
-    to_see = [obj]
+    to_see = [ ObjectGraph::ToSee.new(obj, 0) ]
     found = []
 
     edges = Set.new
 
-    while obj = to_see.shift
+    while obj_distance = to_see.shift
+      obj, distance = obj_distance.obj, obj_distance.distance
+      next if @distance and distance > @distance
+
       found.replace ObjectSpace.find_references(obj)
       found.each do |o|
         # Exclude the traversal algorithm and references from the source code from the graph.
-        next if self.equal?(o) || found.equal?(o) || seen.equal?(o) || edges.include?(o) || Thread.current.equal?(o) || RubyVM::InstructionSequence === o
+        next if self.equal?(o) || found.equal?(o) || seen.equal?(o) || edges.include?(o) || Thread.current.equal?(o) || RubyVM::InstructionSequence === o || o.class == ObjectGraph::ToSee
         edges << [o, obj] unless obj.equal?(o)
         next if seen.include?(o)
         seen << o
         # Assume that named modules are GC roots.
-        to_see << o unless Module === o && o.name
+        to_see << ObjectGraph::ToSee.new(o, distance + 1) unless Module === o && o.name
       end
     end
 
