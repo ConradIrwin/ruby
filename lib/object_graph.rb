@@ -126,7 +126,7 @@ class ObjectGraph
       found.replace ObjectSpace.find_references(obj)
       found.each do |o|
         # Exclude the traversal algorithm and references from the source code from the graph.
-        next if self.equal?(o) || found.equal?(o) || seen.equal?(o) || edges.include?(o) || Thread.current.equal?(o) || RubyVM::InstructionSequence === o || o.class == ObjectGraph::ToSee
+        next if !(Object === o) || self.equal?(o) || found.equal?(o) || seen.equal?(o) || edges.include?(o) || Thread.current.equal?(o) || RubyVM::InstructionSequence === o || o.class == ObjectGraph::ToSee
         edges << [o, obj] unless obj.equal?(o)
         next if seen.include?(o)
         seen << o
