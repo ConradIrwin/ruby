@@ -34,8 +34,8 @@ class ObjectGraph
   #
   # @return Set<[Object,Object,String]>
   def annotated_edges
-    edges.map do |(from, to)|
-      [from, to, connection_reason(from, to)]
+    edges.map do |(from_id, to_id)|
+      [from_id, to_id, connection_reason(ObjectSpace._id2ref(from_id), ObjectSpace._id2ref(to_id))]
     end
   end
 
@@ -46,12 +46,15 @@ class ObjectGraph
   def graphviz
     str = "digraph G {\n"
 
-    edges.flat_map{ |x| x }.uniq.each do |o|
+    edges.flat_map{ |x| x }.uniq.each do |o_id|
+      o = ObjectSpace._id2ref(o_id)
       label = o.inspect.sub(/^(.{253})....+/){ $1 + "..." }.gsub(/.{64}/){ $& + "\n"}
       str << "#{o.__id__} [label=#{label.inspect}]\n"
     end
 
-    annotated_edges.each do |(f,t,r)|
+    annotated_edges.each do |(f_id,t_id,r)|
+      f = ObjectSpace._id2ref(f_id)
+      t = ObjectSpace._id2ref(t_id)
       if r
         str << "#{f.__id__} -> #{t.__id__} [label=#{r.inspect}]\n"
       else
@@ -124,10 +127,11 @@ class ObjectGraph
       next if @distance and distance > @distance
 
       found.replace ObjectSpace.find_references(obj)
-      found.each do |o|
+      found.each do |o_id|
+        o = ObjectSpace._id2ref(o_id)
         # Exclude the traversal algorithm and references from the source code from the graph.
-        next if !(Object === o) || self.equal?(o) || found.equal?(o) || seen.equal?(o) || edges.include?(o) || Thread.current.equal?(o) || RubyVM::InstructionSequence === o || o.class == ObjectGraph::ToSee
-        edges << [o, obj] unless obj.equal?(o)
+        next if !(Object === o) || self.equal?(o) || found.equal?(o) || seen.equal?(o) || edges.map(&:object_id).include?(o.object_id) || Thread.current.equal?(o) || RubyVM::InstructionSequence === o || o.class == ObjectGraph::ToSee
+        edges << [o.object_id, obj.object_id] unless obj.equal?(o)
         next if seen.include?(o)
         seen << o
         # Assume that named modules are GC roots.
