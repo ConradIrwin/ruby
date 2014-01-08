@@ -48,7 +48,7 @@ class ObjectGraph
 
     edges.flat_map{ |x| x }.uniq.each do |o_id|
       o = ObjectSpace._id2ref(o_id)
-      label = o.inspect.sub(/^(.{253})....+/){ $1 + "..." }.gsub(/.{64}/){ $& + "\n"}
+      label = "#{o.class.name}[#{o_id}]"
       str << "#{o.__id__} [label=#{label.inspect}]\n"
     end
 
