@@ -95,17 +95,11 @@ class ObjectGraph
     $VERBOSE = ov
   end
 
-  # Run the edge calculation on a separate thread so that we can tell
-  # which Thread-references are caused by the algorithm and which
-  # actually exist.
+  # Run the edge calculation
   def calculate_edges_in_isolation
-    thread = Thread.new do
-      GC.start
-      reset_globals
-      Thread.current[:edges] = traverse_reference_graph(@obj)
-    end.join
-
-    thread[:edges]
+    GC.start
+    reset_globals
+    traverse_reference_graph(@obj)
   end
 
   ToSee = Struct.new(:obj, :distance)
