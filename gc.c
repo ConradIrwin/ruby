@@ -1752,9 +1752,9 @@ gc_mark(rb_objspace_t *objspace, VALUE ptr)
 {
     register RVALUE *obj;
 
-    if (sought && ptr == sought && cur_parent != found) {
+    if (sought && ptr == sought) {
         if (cur_parent && CLASS_OF(cur_parent)) {
-              rb_ary_push(found, cur_parent);
+              rb_ary_push(found, rb_obj_id(cur_parent));
         }
     }
 
